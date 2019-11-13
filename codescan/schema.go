@@ -251,6 +251,10 @@ func (s *schemaBuilder) buildFromType(tpe types.Type, tgt swaggerTypable) error 
 			return nil
 		}
 	case *types.Named:
+		if tpe.Underlying().String() == "int32" {
+			return swaggerSchemaForType(tpe.Underlying().String(), tgt)
+		}
+
 		tio := titpe.Obj()
 		if tio.Pkg() == nil && tio.Name() == "error" {
 			return swaggerSchemaForType(tio.Name(), tgt)
