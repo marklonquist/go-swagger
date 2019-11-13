@@ -693,6 +693,7 @@ type validationBuilder interface {
 
 	SetUnique(bool)
 	SetEnum(string)
+	SetEnumNames(string)
 	SetDefault(interface{})
 	SetExample(interface{})
 }
@@ -955,6 +956,26 @@ func (se *setEnum) Parse(lines []string) error {
 	matches := se.rx.FindStringSubmatch(lines[0])
 	if len(matches) > 1 && len(matches[1]) > 0 {
 		se.builder.SetEnum(matches[1])
+	}
+	return nil
+}
+
+type setEnumNames struct {
+	builder validationBuilder
+	rx      *regexp.Regexp
+}
+
+func (se *setEnumNames) Matches(line string) bool {
+	return se.rx.MatchString(line)
+}
+
+func (se *setEnumNames) Parse(lines []string) error {
+	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
+		return nil
+	}
+	matches := se.rx.FindStringSubmatch(lines[0])
+	if len(matches) > 1 && len(matches[1]) > 0 {
+		se.builder.SetEnumNames(matches[1])
 	}
 	return nil
 }
@@ -1503,5 +1524,20 @@ func parseEnum(val string, s *spec.SimpleSchema) []interface{} {
 
 		interfaceSlice[i] = v
 	}
+
 	return interfaceSlice
+}
+
+func parseEnumWithNames(val string, s *spec.SimpleSchema) ([]interface{}, []string) {
+	list := strings.Split(val, ",")
+	values := make([]interface{}, len(list))
+	names := make([]string, len(list))
+	for i, d := range list {
+		splitted := strings.Split(d, ":")
+		v, _ := parseValueFromSchema(splitted[1], s)
+		values[i] = v
+		names[i] = splitted[0]
+	}
+
+	return values, names
 }

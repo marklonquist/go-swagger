@@ -94,6 +94,9 @@ func (sv schemaValidations) SetExample(val interface{}) { sv.current.Example = v
 func (sv schemaValidations) SetEnum(val string) {
 	sv.current.Enum = parseEnum(val, &spec.SimpleSchema{Format: sv.current.Format, Type: sv.current.Type[0]})
 }
+func (sv schemaValidations) SetEnumNames(val string) {
+	sv.current.AddExtension("x-enumNames", parseEnum(val, &spec.SimpleSchema{Format: sv.current.Format, Type: sv.current.Type[0]}))
+}
 
 type schemaBuilder struct {
 	ctx        *scanCtx
@@ -872,6 +875,7 @@ func (s *schemaBuilder) createParser(nm string, schema, ps *spec.Schema, fld *as
 			newSingleLineTagParser("maxItems", &setMaxItems{schemaValidations{ps}, rxf(rxMaxItemsFmt, "")}),
 			newSingleLineTagParser("unique", &setUnique{schemaValidations{ps}, rxf(rxUniqueFmt, "")}),
 			newSingleLineTagParser("enum", &setEnum{schemaValidations{ps}, rxf(rxEnumFmt, "")}),
+			newSingleLineTagParser("x-enumNames", &setEnumNames{schemaValidations{ps}, rxf(rxEnumNamesFmt, "")}),
 			newSingleLineTagParser("default", &setDefault{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{ps}, rxf(rxDefaultFmt, "")}),
 			newSingleLineTagParser("type", &setDefault{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{ps}, rxf(rxDefaultFmt, "")}),
 			newSingleLineTagParser("example", &setExample{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{ps}, rxf(rxExampleFmt, "")}),
@@ -899,6 +903,7 @@ func (s *schemaBuilder) createParser(nm string, schema, ps *spec.Schema, fld *as
 				newSingleLineTagParser(fmt.Sprintf("items%dMaxItems", level), &setMaxItems{schemaValidations{items}, rxf(rxMaxItemsFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dUnique", level), &setUnique{schemaValidations{items}, rxf(rxUniqueFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dEnum", level), &setEnum{schemaValidations{items}, rxf(rxEnumFmt, itemsPrefix)}),
+				newSingleLineTagParser(fmt.Sprintf("items%dx-enumNames", level), &setEnumNames{schemaValidations{items}, rxf(rxEnumNamesFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dExample", level), &setExample{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{items}, rxf(rxExampleFmt, itemsPrefix)}),
 			}
