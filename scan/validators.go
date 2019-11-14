@@ -19,6 +19,7 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"go/types"
 	"regexp"
 	"strconv"
 	"strings"
@@ -40,7 +41,6 @@ type validationBuilder interface {
 
 	SetUnique(bool)
 	SetEnum(string)
-	SetEnumNames(string)
 	SetDefault(interface{})
 	SetExample(interface{})
 }
@@ -55,7 +55,7 @@ type setMaximum struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setMaximum) Parse(lines []string) error {
+func (sm *setMaximum) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -83,7 +83,7 @@ func (sm *setMinimum) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMinimum) Parse(lines []string) error {
+func (sm *setMinimum) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -107,7 +107,7 @@ func (sm *setMultipleOf) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMultipleOf) Parse(lines []string) error {
+func (sm *setMultipleOf) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -131,7 +131,7 @@ func (sm *setMaxItems) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMaxItems) Parse(lines []string) error {
+func (sm *setMaxItems) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -155,7 +155,7 @@ func (sm *setMinItems) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMinItems) Parse(lines []string) error {
+func (sm *setMinItems) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -175,7 +175,7 @@ type setMaxLength struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setMaxLength) Parse(lines []string) error {
+func (sm *setMaxLength) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -199,7 +199,7 @@ type setMinLength struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setMinLength) Parse(lines []string) error {
+func (sm *setMinLength) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -223,7 +223,7 @@ type setPattern struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setPattern) Parse(lines []string) error {
+func (sm *setPattern) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -243,7 +243,7 @@ type setCollectionFormat struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setCollectionFormat) Parse(lines []string) error {
+func (sm *setCollectionFormat) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -267,7 +267,7 @@ func (su *setUnique) Matches(line string) bool {
 	return su.rx.MatchString(line)
 }
 
-func (su *setUnique) Parse(lines []string) error {
+func (su *setUnique) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -291,7 +291,7 @@ func (se *setEnum) Matches(line string) bool {
 	return se.rx.MatchString(line)
 }
 
-func (se *setEnum) Parse(lines []string) error {
+func (se *setEnum) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -311,7 +311,7 @@ func (se *setEnumNames) Matches(line string) bool {
 	return se.rx.MatchString(line)
 }
 
-func (se *setEnumNames) Parse(lines []string) error {
+func (se *setEnumNames) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -363,7 +363,7 @@ func (sd *setDefault) Matches(line string) bool {
 	return sd.rx.MatchString(line)
 }
 
-func (sd *setDefault) Parse(lines []string) error {
+func (sd *setDefault) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -388,7 +388,7 @@ func (se *setExample) Matches(line string) bool {
 	return se.rx.MatchString(line)
 }
 
-func (se *setExample) Parse(lines []string) error {
+func (se *setExample) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -412,7 +412,7 @@ func (mo *matchOnlyParam) Matches(line string) bool {
 	return mo.rx.MatchString(line)
 }
 
-func (mo *matchOnlyParam) Parse(lines []string) error {
+func (mo *matchOnlyParam) Parse(lines []string, tpe types.Type) error {
 	return nil
 }
 
@@ -424,7 +424,7 @@ func (su *setRequiredParam) Matches(line string) bool {
 	return rxRequired.MatchString(line)
 }
 
-func (su *setRequiredParam) Parse(lines []string) error {
+func (su *setRequiredParam) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -447,7 +447,7 @@ func (su *setReadOnlySchema) Matches(line string) bool {
 	return rxReadOnly.MatchString(line)
 }
 
-func (su *setReadOnlySchema) Parse(lines []string) error {
+func (su *setReadOnlySchema) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -471,7 +471,7 @@ func (su *setDiscriminator) Matches(line string) bool {
 	return rxDiscriminator.MatchString(line)
 }
 
-func (su *setDiscriminator) Parse(lines []string) error {
+func (su *setDiscriminator) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -501,7 +501,7 @@ func (su *setRequiredSchema) Matches(line string) bool {
 	return rxRequired.MatchString(line)
 }
 
-func (su *setRequiredSchema) Parse(lines []string) error {
+func (su *setRequiredSchema) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -545,7 +545,7 @@ func (m *multiLineDropEmptyParser) Matches(line string) bool {
 	return m.rx.MatchString(line)
 }
 
-func (m *multiLineDropEmptyParser) Parse(lines []string) error {
+func (m *multiLineDropEmptyParser) Parse(lines []string, tpe types.Type) error {
 	m.set(removeEmptyLines(lines))
 	return nil
 }
@@ -566,7 +566,7 @@ func (ss *setSchemes) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-func (ss *setSchemes) Parse(lines []string) error {
+func (ss *setSchemes) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -602,7 +602,7 @@ func (ss *setSecurity) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-func (ss *setSecurity) Parse(lines []string) error {
+func (ss *setSecurity) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -733,7 +733,7 @@ func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef
 	return
 }
 
-func (ss *setOpResponses) Parse(lines []string) error {
+func (ss *setOpResponses) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}

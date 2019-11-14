@@ -76,7 +76,7 @@ func (s *setOpParams) Matches(line string) bool {
 	return rxParameters.MatchString(line)
 }
 
-func (s *setOpParams) Parse(lines []string) error {
+func (s *setOpParams) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}

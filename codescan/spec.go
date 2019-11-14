@@ -119,7 +119,7 @@ func (s *specBuilder) buildDiscoveredSchema(decl *entityDecl) error {
 func (s *specBuilder) buildMeta() error {
 	// build swagger object
 	for _, decl := range s.ctx.app.Meta {
-		if err := newMetaParser(s.input).Parse(decl.Comments); err != nil {
+		if err := newMetaParser(s.input).Parse(decl.Comments, nil); err != nil {
 			return err
 		}
 	}

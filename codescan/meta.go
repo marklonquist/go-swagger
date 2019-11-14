@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/types"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -139,7 +140,7 @@ func (s *setMetaSingle) Matches(line string) bool {
 	return s.rx.MatchString(line)
 }
 
-func (s *setMetaSingle) Parse(lines []string) error {
+func (s *setMetaSingle) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}

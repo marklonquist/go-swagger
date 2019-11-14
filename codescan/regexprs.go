@@ -29,6 +29,11 @@ const (
 )
 
 var (
+	// Funday Factory
+	rxEnumType  = regexp.MustCompile(`x-[Ee]num\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
+	rxEnums     = rxf(rxEnumFmt, "")
+	rxEnumNames = rxf(rxEnumNamesFmt, "")
+	// default
 	rxSwaggerAnnotation  = regexp.MustCompile(`swagger:([\p{L}\p{N}\p{Pd}\p{Pc}]+)`)
 	rxFileUpload         = regexp.MustCompile(`swagger:file`)
 	rxStrFmt             = regexp.MustCompile(`swagger:strfmt\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)

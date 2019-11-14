@@ -26,7 +26,7 @@ func (sap *schemaAnnotationParser) Matches(line string) bool {
 	return sap.rx.MatchString(line)
 }
 
-func (sap *schemaAnnotationParser) Parse(lines []string) error {
+func (sap *schemaAnnotationParser) Parse(lines []string, tpe types.Type) error {
 	if sap.Name != "" {
 		return nil
 	}

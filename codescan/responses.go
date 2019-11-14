@@ -102,9 +102,6 @@ func (sv headerValidations) SetCollectionFormat(val string) { sv.current.Collect
 func (sv headerValidations) SetEnum(val string) {
 	sv.current.Enum = parseEnum(val, &spec.SimpleSchema{Type: sv.current.Type, Format: sv.current.Format})
 }
-func (sv headerValidations) SetEnumNames(val string) {
-	sv.current.AddExtension("x-enumNames", parseEnum(val, &spec.SimpleSchema{Type: sv.current.Type, Format: sv.current.Format}))
-}
 func (sv headerValidations) SetDefault(val interface{}) { sv.current.Default = val }
 func (sv headerValidations) SetExample(val interface{}) { sv.current.Example = val }
 
@@ -127,7 +124,7 @@ func (r *responseBuilder) Build(responses map[string]spec.Response) error {
 	// analyze doc comment for the model
 	sp := new(sectionedParser)
 	sp.setDescription = func(lines []string) { response.Description = joinDropLast(lines) }
-	if err := sp.Parse(r.decl.Comments); err != nil {
+	if err := sp.Parse(r.decl.Comments, r.decl.Type); err != nil {
 		return err
 	}
 
@@ -350,7 +347,6 @@ func (r *responseBuilder) buildFromStruct(decl *entityDecl, tpe *types.Struct, r
 			newSingleLineTagParser("maxItems", &setMaxItems{headerValidations{&ps}, rxf(rxMaxItemsFmt, "")}),
 			newSingleLineTagParser("unique", &setUnique{headerValidations{&ps}, rxf(rxUniqueFmt, "")}),
 			newSingleLineTagParser("enum", &setEnum{headerValidations{&ps}, rxf(rxEnumFmt, "")}),
-			newSingleLineTagParser("x-enumNames", &setEnumNames{headerValidations{&ps}, rxf(rxEnumNamesFmt, "")}),
 			newSingleLineTagParser("default", &setDefault{&ps.SimpleSchema, headerValidations{&ps}, rxf(rxDefaultFmt, "")}),
 			newSingleLineTagParser("example", &setExample{&ps.SimpleSchema, headerValidations{&ps}, rxf(rxExampleFmt, "")}),
 		}
@@ -370,7 +366,6 @@ func (r *responseBuilder) buildFromStruct(decl *entityDecl, tpe *types.Struct, r
 				newSingleLineTagParser(fmt.Sprintf("items%dMaxItems", level), &setMaxItems{itemsValidations{items}, rxf(rxMaxItemsFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dUnique", level), &setUnique{itemsValidations{items}, rxf(rxUniqueFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dEnum", level), &setEnum{itemsValidations{items}, rxf(rxEnumFmt, itemsPrefix)}),
-				newSingleLineTagParser(fmt.Sprintf("items%dx-enumNames", level), &setEnumNames{itemsValidations{items}, rxf(rxEnumNamesFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{&items.SimpleSchema, itemsValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dExample", level), &setExample{&items.SimpleSchema, itemsValidations{items}, rxf(rxExampleFmt, itemsPrefix)}),
 			}
@@ -420,7 +415,7 @@ func (r *responseBuilder) buildFromStruct(decl *entityDecl, tpe *types.Struct, r
 			sp.taggers = append(taggers, sp.taggers...)
 		}
 
-		if err := sp.Parse(afld.Doc); err != nil {
+		if err := sp.Parse(afld.Doc, tpe); err != nil {
 			return err
 		}
 

@@ -71,7 +71,7 @@ var (
 	rxModelOverride      = regexp.MustCompile(`swagger:model\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
 	rxResponseOverride   = regexp.MustCompile(`swagger:response\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
 	rxParametersOverride = regexp.MustCompile(`swagger:parameters\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}\p{Zs}]+)$`)
-	rxEnum               = regexp.MustCompile(`swagger:enum\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)
+	rxEnum               = regexp.MustCompile(`swagger:enum\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
 	rxIgnoreOverride     = regexp.MustCompile(`swagger:ignore\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
 	rxDefault            = regexp.MustCompile(`swagger:default\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)
 	rxType               = regexp.MustCompile(`swagger:type\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)
@@ -556,7 +556,7 @@ func (st *tagParser) Matches(line string) bool {
 	return st.Parser.Matches(line)
 }
 
-func (st *tagParser) Parse(lines []string) error {
+func (st *tagParser) Parse(lines []string, tpe types.Type) error {
 	return st.Parser.Parse(lines)
 }
 
@@ -572,7 +572,7 @@ type yamlParser struct {
 	rx  *regexp.Regexp
 }
 
-func (y *yamlParser) Parse(lines []string) error {
+func (y *yamlParser) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}

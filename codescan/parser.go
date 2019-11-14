@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/types"
 	"regexp"
 	"strconv"
 	"strings"
@@ -124,6 +125,48 @@ func ignored(comments *ast.CommentGroup) bool {
 		}
 	}
 	return false
+}
+
+func isEnumType(comments *ast.CommentGroup) bool {
+	if comments != nil {
+		for _, cmt := range comments.List {
+			for _, ln := range strings.Split(cmt.Text, "\n") {
+				matches := rxEnumType.FindStringSubmatch(ln)
+				if len(matches) > 1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func getEnums(comments *ast.CommentGroup) ([]interface{}, bool) {
+	if comments != nil {
+		for _, cmt := range comments.List {
+			for _, ln := range strings.Split(cmt.Text, "\n") {
+				matches := rxEnums.FindStringSubmatch(ln)
+				if len(matches) > 1 && len(matches[1]) > 0 {
+					return parseEnumT(matches[1]), true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+func getEnumNames(comments *ast.CommentGroup) ([]string, bool) {
+	if comments != nil {
+		for _, cmt := range comments.List {
+			for _, ln := range strings.Split(cmt.Text, "\n") {
+				matches := rxEnumNames.FindStringSubmatch(ln)
+				if len(matches) > 1 && len(matches[1]) > 0 {
+					return parseEnumNames(matches[1]), true
+				}
+			}
+		}
+	}
+	return nil, false
 }
 
 func enumName(comments *ast.CommentGroup) (string, bool) {
@@ -283,8 +326,8 @@ func (st *tagParser) Matches(line string) bool {
 	return st.Parser.Matches(line)
 }
 
-func (st *tagParser) Parse(lines []string) error {
-	return st.Parser.Parse(lines)
+func (st *tagParser) Parse(lines []string, tpe types.Type) error {
+	return st.Parser.Parse(lines, tpe)
 }
 
 func newYamlParser(rx *regexp.Regexp, setter func(json.RawMessage) error) valueParser {
@@ -299,7 +342,7 @@ type yamlParser struct {
 	rx  *regexp.Regexp
 }
 
-func (y *yamlParser) Parse(lines []string) error {
+func (y *yamlParser) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -601,7 +644,7 @@ func (st *sectionedParser) Description() []string {
 	return st.header
 }
 
-func (st *sectionedParser) Parse(doc *ast.CommentGroup) error {
+func (st *sectionedParser) Parse(doc *ast.CommentGroup, tpe types.Type) error {
 	if doc == nil {
 		return nil
 	}
@@ -617,7 +660,7 @@ COMMENTS:
 					break COMMENTS // a new swagger: annotation terminates this parser
 				}
 
-				_ = st.annotation.Parse([]string{line})
+				_ = st.annotation.Parse([]string{line}, tpe)
 				if len(st.header) > 0 {
 					st.seenTag = true
 				}
@@ -672,7 +715,7 @@ COMMENTS:
 		if !mt.SkipCleanUp {
 			mt.Lines = cleanupScannerLines(mt.Lines, rxUncommentHeaders, nil)
 		}
-		if err := mt.Parse(mt.Lines); err != nil {
+		if err := mt.Parse(mt.Lines, tpe); err != nil {
 			return err
 		}
 	}
@@ -693,13 +736,12 @@ type validationBuilder interface {
 
 	SetUnique(bool)
 	SetEnum(string)
-	SetEnumNames(string)
 	SetDefault(interface{})
 	SetExample(interface{})
 }
 
 type valueParser interface {
-	Parse([]string) error
+	Parse([]string, types.Type) error
 	Matches(string) bool
 }
 
@@ -713,7 +755,7 @@ type setMaximum struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setMaximum) Parse(lines []string) error {
+func (sm *setMaximum) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -741,7 +783,7 @@ func (sm *setMinimum) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMinimum) Parse(lines []string) error {
+func (sm *setMinimum) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -765,7 +807,7 @@ func (sm *setMultipleOf) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMultipleOf) Parse(lines []string) error {
+func (sm *setMultipleOf) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -789,7 +831,7 @@ func (sm *setMaxItems) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMaxItems) Parse(lines []string) error {
+func (sm *setMaxItems) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -813,7 +855,7 @@ func (sm *setMinItems) Matches(line string) bool {
 	return sm.rx.MatchString(line)
 }
 
-func (sm *setMinItems) Parse(lines []string) error {
+func (sm *setMinItems) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -833,7 +875,7 @@ type setMaxLength struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setMaxLength) Parse(lines []string) error {
+func (sm *setMaxLength) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -857,7 +899,7 @@ type setMinLength struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setMinLength) Parse(lines []string) error {
+func (sm *setMinLength) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -881,7 +923,7 @@ type setPattern struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setPattern) Parse(lines []string) error {
+func (sm *setPattern) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -901,7 +943,7 @@ type setCollectionFormat struct {
 	rx      *regexp.Regexp
 }
 
-func (sm *setCollectionFormat) Parse(lines []string) error {
+func (sm *setCollectionFormat) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -925,7 +967,7 @@ func (su *setUnique) Matches(line string) bool {
 	return su.rx.MatchString(line)
 }
 
-func (su *setUnique) Parse(lines []string) error {
+func (su *setUnique) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -949,33 +991,13 @@ func (se *setEnum) Matches(line string) bool {
 	return se.rx.MatchString(line)
 }
 
-func (se *setEnum) Parse(lines []string) error {
+func (se *setEnum) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
 	matches := se.rx.FindStringSubmatch(lines[0])
 	if len(matches) > 1 && len(matches[1]) > 0 {
 		se.builder.SetEnum(matches[1])
-	}
-	return nil
-}
-
-type setEnumNames struct {
-	builder validationBuilder
-	rx      *regexp.Regexp
-}
-
-func (se *setEnumNames) Matches(line string) bool {
-	return se.rx.MatchString(line)
-}
-
-func (se *setEnumNames) Parse(lines []string) error {
-	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
-		return nil
-	}
-	matches := se.rx.FindStringSubmatch(lines[0])
-	if len(matches) > 1 && len(matches[1]) > 0 {
-		se.builder.SetEnumNames(matches[1])
 	}
 	return nil
 }
@@ -1021,7 +1043,7 @@ func (sd *setDefault) Matches(line string) bool {
 	return sd.rx.MatchString(line)
 }
 
-func (sd *setDefault) Parse(lines []string) error {
+func (sd *setDefault) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1046,7 +1068,7 @@ func (se *setExample) Matches(line string) bool {
 	return se.rx.MatchString(line)
 }
 
-func (se *setExample) Parse(lines []string) error {
+func (se *setExample) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1070,7 +1092,7 @@ func (mo *matchOnlyParam) Matches(line string) bool {
 	return mo.rx.MatchString(line)
 }
 
-func (mo *matchOnlyParam) Parse(lines []string) error {
+func (mo *matchOnlyParam) Parse(lines []string, tpe types.Type) error {
 	return nil
 }
 
@@ -1082,7 +1104,7 @@ func (su *setRequiredParam) Matches(line string) bool {
 	return rxRequired.MatchString(line)
 }
 
-func (su *setRequiredParam) Parse(lines []string) error {
+func (su *setRequiredParam) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1105,7 +1127,7 @@ func (su *setReadOnlySchema) Matches(line string) bool {
 	return rxReadOnly.MatchString(line)
 }
 
-func (su *setReadOnlySchema) Parse(lines []string) error {
+func (su *setReadOnlySchema) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1128,7 +1150,7 @@ func (su *setDeprecatedOp) Matches(line string) bool {
 	return rxDeprecated.MatchString(line)
 }
 
-func (su *setDeprecatedOp) Parse(lines []string) error {
+func (su *setDeprecatedOp) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1152,7 +1174,7 @@ func (su *setDiscriminator) Matches(line string) bool {
 	return rxDiscriminator.MatchString(line)
 }
 
-func (su *setDiscriminator) Parse(lines []string) error {
+func (su *setDiscriminator) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1180,7 +1202,7 @@ func (su *setRequiredSchema) Matches(line string) bool {
 	return rxRequired.MatchString(line)
 }
 
-func (su *setRequiredSchema) Parse(lines []string) error {
+func (su *setRequiredSchema) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1224,7 +1246,7 @@ func (m *multiLineDropEmptyParser) Matches(line string) bool {
 	return m.rx.MatchString(line)
 }
 
-func (m *multiLineDropEmptyParser) Parse(lines []string) error {
+func (m *multiLineDropEmptyParser) Parse(lines []string, tpe types.Type) error {
 	m.set(removeEmptyLines(lines))
 	return nil
 }
@@ -1245,7 +1267,7 @@ func (ss *setSchemes) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-func (ss *setSchemes) Parse(lines []string) error {
+func (ss *setSchemes) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1281,7 +1303,7 @@ func (ss *setSecurity) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-func (ss *setSecurity) Parse(lines []string) error {
+func (ss *setSecurity) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1412,7 +1434,7 @@ func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef
 	return
 }
 
-func (ss *setOpResponses) Parse(lines []string) error {
+func (ss *setOpResponses) Parse(lines []string, tpe types.Type) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -1512,6 +1534,27 @@ func (ss *setOpResponses) Parse(lines []string) error {
 	return nil
 }
 
+func parseEnumT(val string) []interface{} {
+	list := strings.Split(val, ",")
+	interfaceSlice := make([]interface{}, len(list))
+
+	for i, e := range list {
+		interfaceSlice[i] = e
+	}
+
+	return interfaceSlice
+}
+
+func parseEnumNames(val string) []string {
+	list := strings.Split(val, ",")
+	names := make([]string, len(list))
+	for i, e := range list {
+		names[i] = e
+	}
+
+	return names
+}
+
 func parseEnum(val string, s *spec.SimpleSchema) []interface{} {
 	list := strings.Split(val, ",")
 	interfaceSlice := make([]interface{}, len(list))
@@ -1526,18 +1569,4 @@ func parseEnum(val string, s *spec.SimpleSchema) []interface{} {
 	}
 
 	return interfaceSlice
-}
-
-func parseEnumWithNames(val string, s *spec.SimpleSchema) ([]interface{}, []string) {
-	list := strings.Split(val, ",")
-	values := make([]interface{}, len(list))
-	names := make([]string, len(list))
-	for i, d := range list {
-		splitted := strings.Split(d, ":")
-		v, _ := parseValueFromSchema(splitted[1], s)
-		values[i] = v
-		names[i] = splitted[0]
-	}
-
-	return values, names
 }

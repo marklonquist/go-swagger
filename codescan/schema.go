@@ -94,9 +94,6 @@ func (sv schemaValidations) SetExample(val interface{}) { sv.current.Example = v
 func (sv schemaValidations) SetEnum(val string) {
 	sv.current.Enum = parseEnum(val, &spec.SimpleSchema{Format: sv.current.Format, Type: sv.current.Type[0]})
 }
-func (sv schemaValidations) SetEnumNames(val string) {
-	sv.current.AddExtension("x-enumNames", parseEnum(val, &spec.SimpleSchema{Format: sv.current.Format, Type: sv.current.Type[0]}))
-}
 
 type schemaBuilder struct {
 	ctx        *scanCtx
@@ -157,7 +154,7 @@ func (s *schemaBuilder) buildFromDecl(decl *entityDecl, schema *spec.Schema) err
 	sp := new(sectionedParser)
 	sp.setTitle = func(lines []string) { schema.Title = joinDropLast(lines) }
 	sp.setDescription = func(lines []string) { schema.Description = joinDropLast(lines) }
-	if err := sp.Parse(s.decl.Comments); err != nil {
+	if err := sp.Parse(s.decl.Comments, s.decl.Type); err != nil {
 		return err
 	}
 
@@ -251,10 +248,6 @@ func (s *schemaBuilder) buildFromType(tpe types.Type, tgt swaggerTypable) error 
 			return nil
 		}
 	case *types.Named:
-		if tpe.Underlying().String() == "int32" {
-			return swaggerSchemaForType(tpe.Underlying().String(), tgt)
-		}
-
 		tio := titpe.Obj()
 		if tio.Pkg() == nil && tio.Name() == "error" {
 			return swaggerSchemaForType(tio.Name(), tgt)
@@ -273,6 +266,19 @@ func (s *schemaBuilder) buildFromType(tpe types.Type, tgt swaggerTypable) error 
 		cmt, hasComments := s.ctx.FindComments(pkg, tio.Name())
 		if !hasComments {
 			cmt = new(ast.CommentGroup)
+		}
+
+		if ok := isEnumType(cmt); ok {
+			enums, ok := getEnums(cmt)
+			if ok {
+				tgt.Schema().Enum = enums
+				enumNames, ok := getEnumNames(cmt)
+				if ok {
+					tgt.Schema().AddExtension("x-enumNames", enumNames)
+				}
+				tgt.Typed("integer", "int32")
+				return nil
+			}
 		}
 
 		switch utitpe := tpe.Underlying().(type) {
@@ -325,6 +331,7 @@ func (s *schemaBuilder) buildFromType(tpe types.Type, tgt swaggerTypable) error 
 					return nil
 				}
 			}
+
 			if decl, ok := s.ctx.FindModel(tio.Pkg().Path(), tio.Name()); ok {
 				if err := s.makeRef(decl, tgt); err != nil {
 					return err
@@ -550,7 +557,7 @@ func (s *schemaBuilder) buildFromInterface(decl *entityDecl, it *types.Interface
 			ps.Items = nil
 		}
 
-		if err := s.createParser(name, tgt, &ps, afld).Parse(afld.Doc); err != nil {
+		if err := s.createParser(name, tgt, &ps, afld).Parse(afld.Doc, decl.Type); err != nil {
 			return err
 		}
 
@@ -734,7 +741,7 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 			ps.Items = nil
 		}
 
-		if err = s.createParser(name, tgt, &ps, afld).Parse(afld.Doc); err != nil {
+		if err = s.createParser(name, tgt, &ps, afld).Parse(afld.Doc, decl.Type); err != nil {
 			return err
 		}
 
@@ -879,7 +886,6 @@ func (s *schemaBuilder) createParser(nm string, schema, ps *spec.Schema, fld *as
 			newSingleLineTagParser("maxItems", &setMaxItems{schemaValidations{ps}, rxf(rxMaxItemsFmt, "")}),
 			newSingleLineTagParser("unique", &setUnique{schemaValidations{ps}, rxf(rxUniqueFmt, "")}),
 			newSingleLineTagParser("enum", &setEnum{schemaValidations{ps}, rxf(rxEnumFmt, "")}),
-			newSingleLineTagParser("x-enumNames", &setEnumNames{schemaValidations{ps}, rxf(rxEnumNamesFmt, "")}),
 			newSingleLineTagParser("default", &setDefault{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{ps}, rxf(rxDefaultFmt, "")}),
 			newSingleLineTagParser("type", &setDefault{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{ps}, rxf(rxDefaultFmt, "")}),
 			newSingleLineTagParser("example", &setExample{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{ps}, rxf(rxExampleFmt, "")}),
@@ -907,7 +913,6 @@ func (s *schemaBuilder) createParser(nm string, schema, ps *spec.Schema, fld *as
 				newSingleLineTagParser(fmt.Sprintf("items%dMaxItems", level), &setMaxItems{schemaValidations{items}, rxf(rxMaxItemsFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dUnique", level), &setUnique{schemaValidations{items}, rxf(rxUniqueFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dEnum", level), &setEnum{schemaValidations{items}, rxf(rxEnumFmt, itemsPrefix)}),
-				newSingleLineTagParser(fmt.Sprintf("items%dx-enumNames", level), &setEnumNames{schemaValidations{items}, rxf(rxEnumNamesFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dExample", level), &setExample{&spec.SimpleSchema{Type: string(schemeType)}, schemaValidations{items}, rxf(rxExampleFmt, itemsPrefix)}),
 			}
