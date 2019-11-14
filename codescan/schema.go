@@ -153,7 +153,11 @@ func (s *schemaBuilder) buildFromDecl(decl *entityDecl, schema *spec.Schema) err
 	// analyze doc comment for the model
 	sp := new(sectionedParser)
 	sp.setTitle = func(lines []string) { schema.Title = joinDropLast(lines) }
-	sp.setDescription = func(lines []string) { schema.Description = joinDropLast(lines) }
+	cmt := decl.Comments
+	if ok := isEnumType(cmt); !ok {
+		sp.setDescription = func(lines []string) { schema.Description = joinDropLast(lines) }
+	}
+
 	if err := sp.Parse(s.decl.Comments, s.decl.Type); err != nil {
 		return err
 	}
@@ -187,6 +191,17 @@ func (s *schemaBuilder) buildFromDecl(decl *entityDecl, schema *spec.Schema) err
 			if o.Pkg().Name() == "time" && o.Name() == "Time" {
 				schema.Typed("string", "date-time")
 				return nil
+			}
+
+			if ok := isEnumType(cmt); ok {
+				enums, ok := getEnums(cmt)
+				if ok {
+					schema.Enum = enums
+					enumNames, ok := getEnumNames(cmt)
+					if ok {
+						schema.AddExtension("x-enumNames", enumNames)
+					}
+				}
 			}
 
 			ps := schemaTypable{schema, 0}
@@ -268,19 +283,6 @@ func (s *schemaBuilder) buildFromType(tpe types.Type, tgt swaggerTypable) error 
 			cmt = new(ast.CommentGroup)
 		}
 
-		if ok := isEnumType(cmt); ok {
-			enums, ok := getEnums(cmt)
-			if ok {
-				tgt.Schema().Enum = enums
-				enumNames, ok := getEnumNames(cmt)
-				if ok {
-					tgt.Schema().AddExtension("x-enumNames", enumNames)
-				}
-				tgt.Typed("integer", "int32")
-				return nil
-			}
-		}
-
 		switch utitpe := tpe.Underlying().(type) {
 		case *types.Struct:
 			if decl, ok := s.ctx.FindModel(tio.Pkg().Path(), tio.Name()); ok {
@@ -338,6 +340,7 @@ func (s *schemaBuilder) buildFromType(tpe types.Type, tgt swaggerTypable) error 
 				}
 				return nil
 			}
+
 			return swaggerSchemaForType(utitpe.String(), tgt)
 		case *types.Array:
 			if sfnm, isf := strfmtName(cmt); isf {

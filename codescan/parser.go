@@ -131,7 +131,7 @@ func isEnumType(comments *ast.CommentGroup) bool {
 	if comments != nil {
 		for _, cmt := range comments.List {
 			for _, ln := range strings.Split(cmt.Text, "\n") {
-				matches := rxEnumType.FindStringSubmatch(ln)
+				matches := rxXEnum.FindStringSubmatch(ln)
 				if len(matches) > 1 {
 					return true
 				}
@@ -145,7 +145,7 @@ func getEnums(comments *ast.CommentGroup) ([]interface{}, bool) {
 	if comments != nil {
 		for _, cmt := range comments.List {
 			for _, ln := range strings.Split(cmt.Text, "\n") {
-				matches := rxEnums.FindStringSubmatch(ln)
+				matches := rxXEnum.FindStringSubmatch(ln)
 				if len(matches) > 1 && len(matches[1]) > 0 {
 					return parseEnumT(matches[1]), true
 				}
@@ -159,9 +159,11 @@ func getEnumNames(comments *ast.CommentGroup) ([]string, bool) {
 	if comments != nil {
 		for _, cmt := range comments.List {
 			for _, ln := range strings.Split(cmt.Text, "\n") {
-				matches := rxEnumNames.FindStringSubmatch(ln)
+				matches := rxXEnum.FindStringSubmatch(ln)
 				if len(matches) > 1 && len(matches[1]) > 0 {
-					return parseEnumNames(matches[1]), true
+					if strings.Contains(matches[1], ":") {
+						return parseEnumNames(matches[1]), true
+					}
 				}
 			}
 		}
@@ -1539,6 +1541,9 @@ func parseEnumT(val string) []interface{} {
 	interfaceSlice := make([]interface{}, len(list))
 
 	for i, e := range list {
+		if strings.Contains(e, ":") {
+			e = strings.Split(e, ":")[1]
+		}
 		interfaceSlice[i] = e
 	}
 
@@ -1549,7 +1554,8 @@ func parseEnumNames(val string) []string {
 	list := strings.Split(val, ",")
 	names := make([]string, len(list))
 	for i, e := range list {
-		names[i] = e
+		splitted := strings.Split(e, ":")
+		names[i] = splitted[0]
 	}
 
 	return names
