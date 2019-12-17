@@ -763,7 +763,7 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 		seen[name] = fld.Name()
 
 		if _, ok := orderedMap[s.Name+fld.Name()]; !ok {
-			addExtension(&ps.VendorExtensible, "x-order", orderedStructMap[s.Name])
+			addExtension(&ps.VendorExtensible, "x-position", orderedStructMap[s.Name])
 			orderedStructMap[s.Name]++
 			orderedMap[s.Name+fld.Name()] = nil
 		}
