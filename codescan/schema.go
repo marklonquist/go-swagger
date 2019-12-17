@@ -146,6 +146,7 @@ func (s *schemaBuilder) Build(definitions map[string]spec.Schema) error {
 		return err
 	}
 	definitions[s.Name] = schema
+
 	return nil
 }
 
@@ -683,6 +684,9 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 	}
 	tgt.Typed("object", "")
 
+	if _, ok := orderedStructMap[s.Name]; !ok {
+		orderedStructMap[s.Name] = 0
+	}
 	for i := 0; i < st.NumFields(); i++ {
 		fld := st.Field(i)
 		tg := st.Tag(i)
@@ -757,6 +761,13 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 		// 2. field with different name removes tag
 		// so we need to save both tag&name
 		seen[name] = fld.Name()
+
+		if _, ok := orderedMap[s.Name+fld.Name()]; !ok {
+			addExtension(&ps.VendorExtensible, "x-order", orderedStructMap[s.Name])
+			orderedStructMap[s.Name]++
+			orderedMap[s.Name+fld.Name()] = nil
+		}
+
 		tgt.Properties[name] = ps
 	}
 
@@ -771,8 +782,12 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 			delete(tgt.Properties, k)
 		}
 	}
+
 	return nil
 }
+
+var orderedStructMap = make(map[string]int)
+var orderedMap = make(map[string]interface{})
 
 func (s *schemaBuilder) buildAllOf(tpe types.Type, schema *spec.Schema) error {
 	debugLog("allOf %s", tpe.Underlying())
