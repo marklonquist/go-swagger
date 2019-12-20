@@ -58,7 +58,15 @@ func joinDropLast(lines []string) string {
 	if l > 0 && len(strings.TrimSpace(lines[l-1])) == 0 {
 		lns = lines[:l-1]
 	}
-	return strings.Join(lns, "\n")
+	result := make([]string, 0)
+	for _, v := range lns {
+		matches := rxXEnum.FindStringSubmatch(v)
+		if len(matches) > 1 {
+			continue
+		}
+		result = append(result, v)
+	}
+	return strings.Join(result, "\n")
 }
 
 func removeEmptyLines(lines []string) (notEmpty []string) {

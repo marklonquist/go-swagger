@@ -155,9 +155,7 @@ func (s *schemaBuilder) buildFromDecl(decl *entityDecl, schema *spec.Schema) err
 	sp := new(sectionedParser)
 	sp.setTitle = func(lines []string) { schema.Title = joinDropLast(lines) }
 	cmt := decl.Comments
-	if ok := isEnumType(cmt); !ok {
-		sp.setDescription = func(lines []string) { schema.Description = joinDropLast(lines) }
-	}
+	sp.setDescription = func(lines []string) { schema.Description = joinDropLast(lines) }
 
 	if err := sp.Parse(s.decl.Comments, s.decl.Type); err != nil {
 		return err
@@ -734,6 +732,16 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 		}
 
 		ps := tgt.Properties[name]
+		if isEnumType(afld.Doc) {
+			enums, ok := getEnums(afld.Doc)
+			if ok {
+				ps.Enum = enums
+				enumNames, ok := getEnumNames(afld.Doc)
+				if ok {
+					ps.AddExtension("x-enumNames", enumNames)
+				}
+			}
+		}
 		if err = s.buildFromType(fld.Type(), schemaTypable{&ps, 0}); err != nil {
 			return err
 		}
