@@ -16,9 +16,7 @@ const (
 	rxMinLengthFmt        = "%s[Mm]in(?:imum)?(?:\\p{Zs}*[\\p{Pd}\\p{Pc}]?[Ll]en(?:gth)?)\\p{Zs}*:\\p{Zs}*(\\p{N}+)$"
 	rxPatternFmt          = "%s[Pp]attern\\p{Zs}*:\\p{Zs}*(.*)$"
 	rxCollectionFormatFmt = "%s[Cc]ollection(?:\\p{Zs}*[\\p{Pd}\\p{Pc}]?[Ff]ormat)\\p{Zs}*:\\p{Zs}*(.*)$"
-	rxXEnumFmt            = "%sx-[Ee]num\\p{Zs}*:\\p{Zs}*(.*)$"
 	rxEnumFmt             = "%s[Ee]numOBSOLETE\\p{Zs}*:\\p{Zs}*(.*)$"
-	rxEnumNamesFmt        = "%sx-enumNames\\p{Zs}*:\\p{Zs}*(.*)$"
 	rxDefaultFmt          = "%s[Dd]efault\\p{Zs}*:\\p{Zs}*(.*)$"
 	rxExampleFmt          = "%s[Ee]xample\\p{Zs}*:\\p{Zs}*(.*)$"
 
@@ -31,7 +29,7 @@ const (
 
 var (
 	// Funday Factory
-	rxXEnum = rxf(rxXEnumFmt, "")
+	rxXEnum = regexp.MustCompile(`x-[Ee]num\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
 	// default
 	rxSwaggerAnnotation  = regexp.MustCompile(`swagger:([\p{L}\p{N}\p{Pd}\p{Pc}]+)`)
 	rxFileUpload         = regexp.MustCompile(`swagger:file`)
