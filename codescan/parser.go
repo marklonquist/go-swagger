@@ -149,34 +149,14 @@ func isEnumType(comments *ast.CommentGroup) bool {
 	return false
 }
 
-func getEnums(comments *ast.CommentGroup) ([]interface{}, bool) {
-	if comments != nil {
-		for _, cmt := range comments.List {
-			for _, ln := range strings.Split(cmt.Text, "\n") {
-				matches := rxXEnum.FindStringSubmatch(ln)
-				if len(matches) > 1 && len(matches[1]) > 0 {
-					return parseEnumT(matches[1]), true
-				}
-			}
+func getEnums(file *ast.File) (result map[int]string) {
+	result = make(map[int]string)
+	for _, v := range file.Scope.Objects {
+		if v.Kind == ast.Con {
+			result[v.Data.(int)] = v.Name
 		}
 	}
-	return nil, false
-}
-
-func getEnumNames(comments *ast.CommentGroup) ([]string, bool) {
-	if comments != nil {
-		for _, cmt := range comments.List {
-			for _, ln := range strings.Split(cmt.Text, "\n") {
-				matches := rxXEnum.FindStringSubmatch(ln)
-				if len(matches) > 1 && len(matches[1]) > 0 {
-					if strings.Contains(matches[1], ":") {
-						return parseEnumNames(matches[1]), true
-					}
-				}
-			}
-		}
-	}
-	return nil, false
+	return
 }
 
 func enumName(comments *ast.CommentGroup) (string, bool) {

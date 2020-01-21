@@ -192,15 +192,10 @@ func (s *schemaBuilder) buildFromDecl(decl *entityDecl, schema *spec.Schema) err
 				return nil
 			}
 
-			if ok := isEnumType(cmt); ok {
-				enums, ok := getEnums(cmt)
-				if ok {
-					schema.Enum = enums
-					enumNames, ok := getEnumNames(cmt)
-					if ok {
-						schema.AddExtension("x-enumNames", enumNames)
-					}
-				}
+			enums, enumNames, ok := handleEnum(cmt, s)
+			if ok {
+				schema.Enum = enums
+				schema.AddExtension("x-enumNames", enumNames)
 			}
 
 			ps := schemaTypable{schema, 0}
@@ -732,16 +727,12 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 		}
 
 		ps := tgt.Properties[name]
-		if isEnumType(afld.Doc) {
-			enums, ok := getEnums(afld.Doc)
-			if ok {
-				ps.Enum = enums
-				enumNames, ok := getEnumNames(afld.Doc)
-				if ok {
-					ps.AddExtension("x-enumNames", enumNames)
-				}
-			}
+		enums, enumNames, ok := handleEnum(afld.Doc, s)
+		if ok {
+			ps.Enum = enums
+			ps.AddExtension("x-enumNames", enumNames)
 		}
+
 		if err = s.buildFromType(fld.Type(), schemaTypable{&ps, 0}); err != nil {
 			return err
 		}
@@ -1080,4 +1071,18 @@ func isFieldStringable(tpe ast.Expr) bool {
 		return false
 	}
 	return false
+}
+
+func handleEnum(cmt *ast.CommentGroup, s *schemaBuilder) (enums []interface{}, enumNames []string, isEnum bool) {
+	if ok := isEnumType(cmt); ok {
+		isEnum = true
+		values := getEnums(s.decl.File)
+		enums = make([]interface{}, len(values))
+		enumNames = make([]string, len(values))
+		for k, v := range values {
+			enums[k] = k
+			enumNames[k] = v
+		}
+	}
+	return
 }
