@@ -665,12 +665,6 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 			}
 		}
 
-		ignore, err = parseDatastoreTag(afld)
-		if err != nil {
-			return err
-		}
-		tgt.AddExtension("datastore-ignore", ignore)
-
 		schema.AllOf = append(schema.AllOf, newSch)
 	}
 
@@ -742,7 +736,7 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 		if err != nil {
 			return err
 		}
-		ps.AddExtension("x-datastore-ignore", ignore)
+		ps.AddExtension("x-hidden", ignore)
 
 		if err = s.buildFromType(fld.Type(), schemaTypable{&ps, 0}); err != nil {
 			return err
@@ -1078,23 +1072,23 @@ func parseDatastoreTag(field *ast.Field) (ignore bool, err error) {
 	if strings.TrimSpace(tv) != "" {
 		st := reflect.StructTag(tv)
 		datastoreParts := tagOptions(strings.Split(st.Get("datastore"), ","))
-		ignoreParts := tagOptions(strings.Split(st.Get("ignore"), ","))
+		dontHideParts := tagOptions(strings.Split(st.Get("donthide"), ","))
 
-		shouldIgnore := false
+		shouldHide := false
 
 		switch datastoreParts.Name() {
 		case "-":
-			shouldIgnore = true
+			shouldHide = true
 		case "":
-			shouldIgnore = false
+			shouldHide = false
 		default:
-			shouldIgnore = false
+			shouldHide = false
 		}
-		switch ignoreParts.Name() {
+		switch dontHideParts.Name() {
 		case "-":
-			shouldIgnore = false
+			shouldHide = false
 		}
-		return shouldIgnore, nil
+		return shouldHide, nil
 	}
 	return false, nil
 }
