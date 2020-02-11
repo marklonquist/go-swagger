@@ -665,6 +665,12 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 			}
 		}
 
+		ignore, err = parseDatastoreTag(afld)
+		if err != nil {
+			return err
+		}
+		tgt.AddExtension("datastore-ignore", ignore)
+
 		schema.AllOf = append(schema.AllOf, newSch)
 	}
 
@@ -732,6 +738,11 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 			ps.Enum = enums
 			ps.AddExtension("x-enumNames", enumNames)
 		}
+		ignore, err = parseDatastoreTag(afld)
+		if err != nil {
+			return err
+		}
+		ps.AddExtension("x-datastore-ignore", ignore)
 
 		if err = s.buildFromType(fld.Type(), schemaTypable{&ps, 0}); err != nil {
 			return err
@@ -1052,6 +1063,32 @@ func parseJSONTag(field *ast.Field) (name string, ignore bool, isString bool, er
 		}
 	}
 	return name, false, false, nil
+}
+
+func parseDatastoreTag(field *ast.Field) (ignore bool, err error) {
+	if field.Tag == nil || len(strings.TrimSpace(field.Tag.Value)) == 0 {
+		return false, nil
+	}
+
+	tv, err := strconv.Unquote(field.Tag.Value)
+	if err != nil {
+		return false, err
+	}
+
+	if strings.TrimSpace(tv) != "" {
+		st := reflect.StructTag(tv)
+		datastoreParts := tagOptions(strings.Split(st.Get("datastore"), ","))
+
+		switch datastoreParts.Name() {
+		case "-":
+			return true, nil
+		case "":
+			return false, nil
+		default:
+			return false, nil
+		}
+	}
+	return false, nil
 }
 
 // isFieldStringable check if the field type is a scalar. If the field type is
