@@ -1078,15 +1078,23 @@ func parseDatastoreTag(field *ast.Field) (ignore bool, err error) {
 	if strings.TrimSpace(tv) != "" {
 		st := reflect.StructTag(tv)
 		datastoreParts := tagOptions(strings.Split(st.Get("datastore"), ","))
+		ignoreParts := tagOptions(strings.Split(st.Get("ignore"), ","))
+
+		shouldIgnore := false
 
 		switch datastoreParts.Name() {
 		case "-":
-			return true, nil
+			shouldIgnore = true
 		case "":
-			return false, nil
+			shouldIgnore = false
 		default:
-			return false, nil
+			shouldIgnore = false
 		}
+		switch ignoreParts.Name() {
+		case "-":
+			shouldIgnore = false
+		}
+		return shouldIgnore, nil
 	}
 	return false, nil
 }
