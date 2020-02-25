@@ -151,6 +151,9 @@ func (s *schemaBuilder) Build(definitions map[string]spec.Schema) error {
 }
 
 func (s *schemaBuilder) buildFromDecl(decl *entityDecl, schema *spec.Schema) error {
+	if strings.Contains(decl.Pkg.String(), "DSTORE-2-MONGODB-MIGRATION") {
+		return nil
+	}
 	// analyze doc comment for the model
 	sp := new(sectionedParser)
 	sp.setTitle = func(lines []string) { schema.Title = joinDropLast(lines) }
