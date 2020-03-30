@@ -10,10 +10,12 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/go-openapi/spec"
+	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 )
 
@@ -1027,9 +1029,45 @@ func (t tagOptions) Name() string {
 	return t[0]
 }
 
+func isUpper(s string) bool {
+	for _, r := range s {
+		if !unicode.IsUpper(r) && unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
+}
+
 func parseJSONTag(field *ast.Field) (name string, ignore bool, isString bool, err error) {
 	if len(field.Names) > 0 {
 		name = field.Names[0].Name
+		if isUpper(name) {
+			name = strings.ToLower(name)
+		}
+
+		if len(name) >= 2 && !strings.Contains(name, "XXX_") {
+			initialUppers := 0
+			for _, v := range name {
+				if isUpper(string(v)) {
+					initialUppers++
+				} else {
+					break
+				}
+			}
+			if initialUppers > 1 {
+				for i := 0; i < initialUppers-1; i++ {
+					name = name[:i] + strings.ToLower(string(name[i])) + name[i+1:]
+				}
+			}
+		}
+
+		name = strcase.ToLowerCamel(name)
+		if len(name) > 2 {
+			last2 := name[len(name)-2:]
+			if last2 == "ID" {
+				name = strings.Replace(name, "ID", "Id", -1)
+			}
+		}
 	}
 	if field.Tag == nil || len(strings.TrimSpace(field.Tag.Value)) == 0 {
 		return name, false, false, nil
@@ -1123,6 +1161,13 @@ func handleEnum(cmt *ast.CommentGroup, s *schemaBuilder) (enums []interface{}, e
 		enumNames = make([]string, len(values))
 		for k, v := range values {
 			enums[k] = k
+
+			// check for prefix
+			splitted := strings.Split(v, "_")
+			if len(splitted) == 2 {
+				v = splitted[1]
+			}
+
 			enumNames[k] = v
 		}
 	}
