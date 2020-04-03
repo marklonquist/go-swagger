@@ -202,9 +202,10 @@ func parseContactInfo(line string) (*spec.ContactInfo, error) {
 		name, email = addr.Name, addr.Address
 	}
 	return &spec.ContactInfo{
-		URL:   url,
-		Name:  name,
-		Email: email,
+		ContactInfoProps: spec.ContactInfoProps{
+			URL:   url,
+			Name:  name,
+			Email: email,},
 	}, nil
 }
 
@@ -216,8 +217,10 @@ func setInfoLicense(swspec *spec.Swagger, lines []string) error {
 	line := lines[0]
 	name, url := splitURL(line)
 	info.License = &spec.License{
-		Name: name,
-		URL:  url,
+		LicenseProps: spec.LicenseProps{
+			Name: name,
+			URL:  url,
+		},
 	}
 	return nil
 }

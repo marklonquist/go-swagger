@@ -10,22 +10,17 @@ package {{ .Package }}
 // Editing this file might prove futile when you re-run the generate command
 
 import (
-  "context"
   "net/http"
-  "strings"
-  "fmt"
 
-  errors "github.com/go-openapi/errors"
-  middleware "github.com/go-openapi/runtime/middleware"
-  security "github.com/go-openapi/runtime/security"
-  strfmt "github.com/go-openapi/strfmt"
-  validate "github.com/go-openapi/validate"
-  swag "github.com/go-openapi/swag"
+  "github.com/go-openapi/errors"
+  "github.com/go-openapi/runtime/middleware"
+  "github.com/go-openapi/runtime/security"
+  "github.com/go-openapi/strfmt"
+  "github.com/go-openapi/swag"
+  "github.com/go-openapi/validate"
 
-  {{ range .DefaultImports }}{{ printf "%q" . }}
-  {{ end }}
-  {{ range $key, $value := .Imports }}{{ $key }} {{ printf "%q" $value }}
-  {{ end }}
+  {{ imports .DefaultImports }}
+  {{ imports .Imports }}
 )
 
 // {{ pascalize .Name }}HandlerFunc turns a function with the right signature into a {{ humanize .Name }} handler
@@ -95,6 +90,7 @@ func ({{ .ReceiverName }} *{{ pascalize .Name }}) ServeHTTP(rw http.ResponseWrit
 
 {{ range .ExtraSchemas }}
 // {{ .Name }} {{ template "docstring" . }}
+//
 // swagger:model {{ .Name }}
-{{ template "schema" . }}
-{{ end }}
+  {{- template "schema" . }}
+{{- end }}

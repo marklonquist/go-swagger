@@ -42,7 +42,9 @@ func (tt *templateTest) assertRender(data interface{}, expected string) bool {
 	if !assert.NoError(tt.t, err) {
 		return false
 	}
-	return assert.Equal(tt.t, expected, buf.String())
+	trimmed := strings.TrimLeft(buf.String(), "\n\t ")
+	exp := strings.TrimLeft(expected, "\n\t ")
+	return assert.Equal(tt.t, exp, trimmed)
 }
 
 func TestGenerateModel_Sanity(t *testing.T) {
@@ -82,7 +84,8 @@ func TestGenerateModel_Sanity(t *testing.T) {
 }
 
 func TestGenerateModel_DocString(t *testing.T) {
-	templ := template.Must(template.New("docstring").Funcs(FuncMap).Parse(string(assets["docstring.gotmpl"])))
+	funcMap := FuncMapFunc(DefaultLanguageFunc())
+	templ := template.Must(template.New("docstring").Funcs(funcMap).Parse(string(assets["docstring.gotmpl"])))
 	tt := templateTest{t, templ}
 
 	var gmp GenSchema
@@ -104,7 +107,8 @@ func TestGenerateModel_DocString(t *testing.T) {
 }
 
 func TestGenerateModel_PropertyValidation(t *testing.T) {
-	templ := template.Must(template.New("propertyValidationDocString").Funcs(FuncMap).Parse(string(assets["validation/structfield.gotmpl"])))
+	funcMap := FuncMapFunc(DefaultLanguageFunc())
+	templ := template.Must(template.New("propertyValidationDocString").Funcs(funcMap).Parse(string(assets["validation/structfield.gotmpl"])))
 	tt := templateTest{t, templ}
 
 	var gmp GenSchema
@@ -259,7 +263,7 @@ func TestGenerateModel_Primitives(t *testing.T) {
 			tt.assertRender(&val, "type TheType "+exp+"\n  \n")
 			continue
 		}
-		tt.assertRender(&val, "type TheType "+exp+"\n  // Validate validates this the type\nfunc (o theType) Validate(formats strfmt.Registry) error {\n  return nil\n}\n")
+		tt.assertRender(&val, "type TheType "+exp+"\n  \n// Validate validates this the type\nfunc (o theType) Validate(formats strfmt.Registry) error {\n  return nil\n}\n")
 	}
 }
 
@@ -949,7 +953,6 @@ func TestGenerateModel_Statix(t *testing.T) {
 		schema := definitions[k]
 		opts := opts()
 		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
-		// spew.Dump(genModel)
 		if assert.NoError(t, err) {
 			buf := bytes.NewBuffer(nil)
 			err := templates.MustGet("model").Execute(buf, genModel)
@@ -2487,9 +2490,12 @@ func TestGenModel_Issue1623(t *testing.T) {
 	assertInCode(t, "GeneralHasOmitEmptyFalse string `json:\"generalHasOmitEmptyFalse\"`", res)
 	assertInCode(t, "GeneralHasOmitEmptyTrue string `json:\"generalHasOmitEmptyTrue,omitempty\"`", res)
 	assertInCode(t, "GeneralNoOmitEmpty string `json:\"generalNoOmitEmpty,omitempty\"`", res)
-	assertInCode(t, "RefHasOmitEmptyFalse Bar `json:\"refHasOmitEmptyFalse\"`", res)
+	assertInCode(t, "RefHasOmitEmptyFalse Bar `json:\"refHasOmitEmptyFalse,omitempty\"`", res)
 	assertInCode(t, "RefHasOmitEmptyTrue Bar `json:\"refHasOmitEmptyTrue,omitempty\"`", res)
 	assertInCode(t, "RefNoOmitEmpty Bar `json:\"refNoOmitEmpty,omitempty\"`", res)
+	assertInCode(t, "IntHasJSONString int64 `json:\"intHasJsonString,omitempty,string\"`", res)
+	assertInCode(t, "BoolHasJSONString bool `json:\"boolHasJsonString,omitempty,string\"`", res)
+
 }
 
 func TestGenModel_KeepSpecPropertiesOrder(t *testing.T) {

@@ -21,35 +21,6 @@ import (
 
 const invalidSpecExample = "../fixtures/bugs/825/swagger.yml"
 
-// Perform common initialization of template repository before running tests.
-// This allows to run tests unitarily (e.g. go test -run xxx ).
-func TestMain(m *testing.M) {
-	templates.LoadDefaults()
-	os.Exit(m.Run())
-}
-
-func testGenOpts() (g GenOpts) {
-	g.Target = "."
-	g.APIPackage = defaultAPIPackage
-	g.ModelPackage = defaultModelPackage
-	g.ServerPackage = defaultServerPackage
-	g.ClientPackage = defaultClientPackage
-	g.Principal = ""
-	g.DefaultScheme = "http"
-	g.IncludeModel = true
-	g.IncludeValidator = true
-	g.IncludeHandler = true
-	g.IncludeParameters = true
-	g.IncludeResponses = true
-	g.IncludeMain = false
-	g.IncludeSupport = true
-	g.ExcludeSpec = true
-	g.TemplateDir = ""
-	g.DumpData = false
-	_ = g.EnsureDefaults()
-	return
-}
-
 func testAppGenerator(t testing.TB, specPath, name string) (*appGenerator, error) {
 	specDoc, err := loads.Spec(specPath)
 	if !assert.NoError(t, err) {
@@ -89,7 +60,7 @@ func testAppGenerator(t testing.TB, specPath, name string) (*appGenerator, error
 		DefaultScheme:   "http",
 		DefaultProduces: runtime.JSONMime,
 		DefaultConsumes: runtime.JSONMime,
-		GenOpts:         &opts,
+		GenOpts:         opts,
 	}, nil
 }
 
@@ -161,7 +132,7 @@ func TestServer_InvalidSpec(t *testing.T) {
 	opts := testGenOpts()
 	opts.Spec = invalidSpecExample
 	opts.ValidateSpec = true
-	assert.Error(t, GenerateServer("foo", nil, nil, &opts))
+	assert.Error(t, GenerateServer("foo", nil, nil, opts))
 }
 
 func TestServer_TrailingSlash(t *testing.T) {
@@ -377,6 +348,44 @@ func TestServer_Issue1301(t *testing.T) {
 	}
 }
 
+func TestServer_PreServerShutdown_Issue2108(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stdout)
+	gen, err := testAppGenerator(t, "../fixtures/enhancements/2108/swagger.yml", "pre server shutdown")
+	if assert.NoError(t, err) {
+		app, err := gen.makeCodegenApp()
+		if assert.NoError(t, err) {
+			buf := bytes.NewBuffer(nil)
+			// check the serverBuilder output
+			if assert.NoError(t, templates.MustGet("serverBuilder").Execute(buf, app)) {
+				formatted, err := app.GenOpts.LanguageOpts.FormatContent("shipyard_api.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(formatted)
+
+					assertInCode(t, `PreServerShutdown:   func() {},`, res)
+					assertInCode(t, `PreServerShutdown func()`, res)
+
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+			buf = bytes.NewBuffer(nil)
+			if assert.NoError(t, templates.MustGet("serverConfigureapi").Execute(buf, app)) {
+				formatted, err := app.GenOpts.LanguageOpts.FormatContent("configure_shipyard_api.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(formatted)
+
+					// initialisation in New<Name>API function
+					assertInCode(t, `api.PreServerShutdown = func() {}`, res)
+
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+		}
+	}
+}
+
 func TestServer_Issue1557(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 	defer log.SetOutput(os.Stdout)
@@ -389,10 +398,16 @@ func TestServer_Issue1557(t *testing.T) {
 				formatted, err := app.GenOpts.LanguageOpts.FormatContent("shipyard_api.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(formatted)
-					assertRegexpInCode(t, `ApplicationPdfConsumer:\s+runtime.Consumer`, res)
-					assertRegexpInCode(t, `ApplicationPdfProducer:\s+runtime.Producer`, res)
-					assertInCode(t, `result["application/pdf"] = o.ApplicationPdfConsumer`, res)
-					assertInCode(t, `result["application/pdf"] = o.ApplicationPdfProducer`, res)
+					assertInCode(t, `ApplicationDummyConsumer runtime.Consumer`, res)
+					assertInCode(t, `ApplicationDummyProducer runtime.Producer`, res)
+					assertInCode(t, `ApplicationDummyConsumer: runtime.ConsumerFunc(func(r io.Reader, target interface{}) error {`, res)
+					assertInCode(t, `ApplicationDummyProducer: runtime.ProducerFunc(func(w io.Writer, data interface{}) error {`, res)
+					assertInCode(t, `BinConsumer: runtime.ByteStreamConsumer(),`, res)
+					assertInCode(t, `BinProducer: runtime.ByteStreamProducer(),`, res)
+					assertInCode(t, `result["application/pdf"] = o.BinConsumer`, res)
+					assertInCode(t, `result["application/pdf"] = o.BinProducer`, res)
+					assertInCode(t, `result["application/dummy"] = o.ApplicationDummyConsumer`, res)
+					assertInCode(t, `result["application/dummy"] = o.ApplicationDummyProducer`, res)
 				} else {
 					fmt.Println(buf.String())
 				}
@@ -437,7 +452,7 @@ func TestServer_Issue1746(t *testing.T) {
 	opts.Spec = filepath.Join("..", "..", "fixtures", "bugs", "1746", "fixture-1746.yaml")
 	tgtSpec := regexp.QuoteMeta(filepath.Join("..", "..", opts.Spec))
 
-	err = GenerateServer("", nil, nil, &opts)
+	err = GenerateServer("", nil, nil, opts)
 	assert.NoError(t, err)
 	gulp, err := ioutil.ReadFile(filepath.Join("x", "restapi", "configure_example_swagger_server.go"))
 	assert.NoError(t, err)
