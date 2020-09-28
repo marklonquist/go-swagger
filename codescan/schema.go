@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -752,7 +753,7 @@ func (s *schemaBuilder) buildFromStruct(decl *entityDecl, st *types.Struct, sche
 			ps.Enum = enums
 			ps.AddExtension("x-enumNames", enumNames)
 		}
-		ignore, err = parseDatastoreTag(afld)
+		ignore, err = shouldHide(afld)
 		if err != nil {
 			return err
 		}
@@ -1116,7 +1117,7 @@ func parseJSONTag(field *ast.Field) (name string, ignore bool, isString bool, er
 	return name, false, false, nil
 }
 
-func parseDatastoreTag(field *ast.Field) (ignore bool, err error) {
+func shouldHide(field *ast.Field) (ignore bool, err error) {
 	if field.Tag == nil || len(strings.TrimSpace(field.Tag.Value)) == 0 {
 		return false, nil
 	}
@@ -1128,21 +1129,14 @@ func parseDatastoreTag(field *ast.Field) (ignore bool, err error) {
 
 	if strings.TrimSpace(tv) != "" {
 		st := reflect.StructTag(tv)
-		datastoreParts := tagOptions(strings.Split(st.Get("datastore"), ","))
-		dontHideParts := tagOptions(strings.Split(st.Get("donthide"), ","))
+		parts := tagOptions(strings.Split(st.Get("hide"), ","))
 
 		shouldHide := false
 
-		switch datastoreParts.Name() {
+		switch parts.Name() {
 		case "-":
 			shouldHide = true
-		case "":
-			shouldHide = false
 		default:
-			shouldHide = false
-		}
-		switch dontHideParts.Name() {
-		case "-":
 			shouldHide = false
 		}
 		return shouldHide, nil
@@ -1173,18 +1167,19 @@ func handleEnum(cmt *ast.CommentGroup, s *schemaBuilder) (enums []interface{}, e
 	if ok := isEnumType(cmt); ok {
 		isEnum = true
 		values := getEnums(s.decl.File)
-		enums = make([]interface{}, len(values))
-		enumNames = make([]string, len(values))
-		for k, v := range values {
-			enums[k] = k
+		enums = make([]interface{}, 0, len(values))
+		enumNames = make([]string, 0, len(values))
 
-			// check for prefix
-			splitted := strings.Split(v, "_")
-			if len(splitted) == 2 {
-				v = splitted[1]
-			}
+		keys := reflect.ValueOf(values).MapKeys()
+		keysOrder := func(i, j int) bool { return keys[i].Interface().(int) < keys[j].Interface().(int) }
+		sort.Slice(keys, keysOrder)
 
-			enumNames[k] = v
+		// process map in key-sorted order
+		for _, key := range keys {
+			k := key.Interface().(int)
+			v := values[k]
+			enums = append(enums, k)
+			enumNames = append(enumNames, v)
 		}
 	}
 	return

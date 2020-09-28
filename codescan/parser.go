@@ -153,7 +153,20 @@ func getEnums(file *ast.File) (result map[int]string) {
 	result = make(map[int]string)
 	for _, v := range file.Scope.Objects {
 		if v.Kind == ast.Con {
-			result[v.Data.(int)] = v.Name
+			val := v.Decl.(*ast.ValueSpec).Values[0].(*ast.BasicLit).Value
+			if len(val) > 0 {
+				intVal, err := strconv.Atoi(val)
+				if err != nil {
+					continue
+				}
+
+				splitted := strings.Split(v.Name, "_")
+				if len(splitted) == 2 {
+					v.Name = splitted[1]
+				}
+
+				result[intVal] = v.Name
+			}
 		}
 	}
 	return
